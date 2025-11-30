@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Sparkles, Loader2 } from "lucide-react";
+import { Send, Sparkles, LogOut, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import chatCompleteImage from "@/assets/chat-complete.jpg";
 
 interface Message {
   role: "user" | "assistant";
@@ -12,144 +13,139 @@ interface Message {
 }
 
 export const ChatInterface = () => {
+  const { user, signOut } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [showComplete, setShowComplete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
 
+  // Create a new conversation when component mounts
+  useEffect(() => {
+    if (user) {
+      createNewConversation();
+    }
+  }, [user]);
+
+  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  const createNewConversation = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("conversations")
+        .insert([
+          {
+            user_id: user.id,
+            title: "New Conversation",
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setConversationId(data.id);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to create conversation",
+      });
+    }
+  };
+
+  const saveMessage = async (role: "user" | "assistant", content: string) => {
+    if (!conversationId || !user) return;
+
+    try {
+      await supabase.from("chat_messages").insert([
+        {
+          conversation_id: conversationId,
+          role,
+          content,
+        },
+      ]);
+    } catch (error: any) {
+      console.error("Error saving message:", error);
+    }
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const userMessage = input.trim();
     setInput("");
+    
+    const newUserMessage: Message = { role: "user", content: userMessage };
+    setMessages((prev) => [...prev, newUserMessage]);
     setIsLoading(true);
+    setShowComplete(false);
+
+    // Save user message
+    await saveMessage("user", userMessage);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cosmic-chat`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ messages: [...messages, userMessage] }),
-        }
-      );
-
-      if (response.status === 429) {
-        toast({
-          title: "Rate Limit Exceeded",
-          description: "Please wait a moment before sending another message.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      if (response.status === 402) {
-        toast({
-          title: "Credits Required",
-          description: "Please add credits to continue using the AI.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      if (!response.ok || !response.body) {
-        throw new Error("Failed to get response");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantMessage = "";
-      let textBuffer = "";
-      let streamDone = false;
-
-      const updateLastAssistantMessage = (content: string) => {
-        setMessages((prev) => {
-          const lastMsg = prev[prev.length - 1];
-          if (lastMsg?.role === "assistant") {
-            return prev.map((m, i) =>
-              i === prev.length - 1 ? { ...m, content } : m
-            );
-          }
-          return [...prev, { role: "assistant", content }];
-        });
-      };
-
-      while (!streamDone) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") {
-            streamDone = true;
-            break;
-          }
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as
-              | string
-              | undefined;
-            if (content) {
-              assistantMessage += content;
-              updateLastAssistantMessage(assistantMessage);
-            }
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
-          }
-        }
-      }
-
-      if (textBuffer.trim()) {
-        for (let raw of textBuffer.split("\n")) {
-          if (!raw) continue;
-          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
-          if (raw.startsWith(":") || raw.trim() === "") continue;
-          if (!raw.startsWith("data: ")) continue;
-          const jsonStr = raw.slice(6).trim();
-          if (jsonStr === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as
-              | string
-              | undefined;
-            if (content) {
-              assistantMessage += content;
-              updateLastAssistantMessage(assistantMessage);
-            }
-          } catch {}
-        }
-      }
-    } catch (error) {
-      console.error("Chat error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to get response. Please try again.",
-        variant: "destructive",
+      const { data, error } = await supabase.functions.invoke("cosmic-chat", {
+        body: { message: userMessage },
       });
+
+      if (error) throw error;
+
+      let fullResponse = "";
+      const reader = data.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        const assistantMessage: Message = { role: "assistant", content: "" };
+        setMessages((prev) => [...prev, assistantMessage]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const jsonData = JSON.parse(line.slice(6));
+                if (jsonData.content) {
+                  fullResponse += jsonData.content;
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    updated[updated.length - 1].content = fullResponse;
+                    return updated;
+                  });
+                }
+              } catch (e) {
+                // Ignore JSON parse errors
+              }
+            }
+          }
+        }
+
+        // Save assistant message
+        await saveMessage("assistant", fullResponse);
+        
+        // Show completion image
+        setShowComplete(true);
+        setTimeout(() => setShowComplete(false), 3000);
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to get response from AI",
+      });
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
@@ -162,77 +158,122 @@ export const ChatInterface = () => {
     }
   };
 
+  const startNewChat = () => {
+    setMessages([]);
+    setShowComplete(false);
+    createNewConversation();
+  };
+
   return (
-    <div className="w-full max-w-4xl mx-auto h-[600px] flex flex-col bg-card/50 backdrop-blur-sm rounded-2xl border border-border/50 shadow-cosmic">
-      <div className="p-6 border-b border-border/50">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-primary" />
-          <h2 className="text-2xl font-bold bg-gradient-stellar bg-clip-text text-transparent">
-            Cosmic Knowledge AI
-          </h2>
-        </div>
-        <p className="text-sm text-muted-foreground mt-2">
-          Ask me about plants, stars, galaxies, and black holes
-        </p>
-      </div>
-
-      <ScrollArea className="flex-1 p-6" ref={scrollRef}>
-        <div className="space-y-4">
-          {messages.length === 0 && (
-            <div className="text-center text-muted-foreground py-12">
-              <Sparkles className="w-12 h-12 mx-auto mb-4 text-primary/50" />
-              <p className="text-lg">Start exploring the cosmos!</p>
-              <p className="text-sm mt-2">
-                Ask about astronomical phenomena or botanical wonders
-              </p>
-            </div>
-          )}
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
+    <div className="w-full max-w-4xl mx-auto">
+      <div className="bg-cosmic-card/80 backdrop-blur-lg rounded-2xl shadow-cosmic border border-cosmic-border overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-cosmic-dark to-cosmic-medium p-4 border-b border-cosmic-border flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-cosmic-accent animate-pulse" />
+            <h2 className="text-lg font-semibold text-cosmic-text">Cosmic AI Assistant</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={startNewChat}
+              variant="ghost"
+              size="sm"
+              className="text-cosmic-muted hover:text-cosmic-text"
             >
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground ml-4"
-                    : "bg-secondary text-secondary-foreground mr-4"
-                }`}
-              >
-                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+              <MessageSquare className="h-4 w-4 mr-2" />
+              New Chat
+            </Button>
+            <Button
+              onClick={signOut}
+              variant="ghost"
+              size="sm"
+              className="text-cosmic-muted hover:text-cosmic-text"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="h-[500px] overflow-y-auto p-6 space-y-4 bg-cosmic-dark/30">
+          {messages.length === 0 ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center space-y-3">
+                <Sparkles className="h-12 w-12 text-cosmic-accent mx-auto animate-pulse" />
+                <p className="text-cosmic-muted text-lg">
+                  Ask me about stars, galaxies, black holes, or any plant!
+                </p>
               </div>
             </div>
-          ))}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-secondary text-secondary-foreground mr-4 flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Thinking...</span>
-              </div>
-            </div>
+          ) : (
+            <>
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${
+                    message.role === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                      message.role === "user"
+                        ? "bg-cosmic-accent text-white"
+                        : "bg-cosmic-card border border-cosmic-border text-cosmic-text"
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  </div>
+                </div>
+              ))}
+              
+              {showComplete && (
+                <div className="flex justify-center">
+                  <div className="rounded-xl overflow-hidden border-2 border-cosmic-accent shadow-cosmic animate-in fade-in zoom-in duration-500">
+                    <img 
+                      src={chatCompleteImage} 
+                      alt="Chat completed successfully" 
+                      className="w-64 h-48 object-cover"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-cosmic-card border border-cosmic-border rounded-2xl px-4 py-3">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-cosmic-accent rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <div className="w-2 h-2 bg-cosmic-accent rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <div className="w-2 h-2 bg-cosmic-accent rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={scrollRef} />
+            </>
           )}
         </div>
-      </ScrollArea>
 
-      <div className="p-6 border-t border-border/50">
-        <div className="flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ask about the cosmos..."
-            className="flex-1 bg-background/50 border-border/50 focus-visible:ring-primary"
-            disabled={isLoading}
-          />
-          <Button
-            onClick={sendMessage}
-            disabled={isLoading || !input.trim()}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+        {/* Input */}
+        <div className="p-4 border-t border-cosmic-border bg-cosmic-dark/50">
+          <div className="flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask about the cosmos or any plant..."
+              disabled={isLoading}
+              className="flex-1 bg-cosmic-dark/50 border-cosmic-border text-cosmic-text placeholder:text-cosmic-muted"
+            />
+            <Button
+              onClick={sendMessage}
+              disabled={isLoading || !input.trim()}
+              className="bg-cosmic-accent hover:bg-cosmic-accent/90 text-white"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
