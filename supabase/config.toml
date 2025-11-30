@@ -1,0 +1,4 @@
+project_id = "dxcfvbgcgowuwznkykgt"
+
+[functions.cosmic-chat]
+verify_jwt = false
