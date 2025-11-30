@@ -1,15 +1,40 @@
 import { ChatInterface } from "@/components/ChatInterface";
-import cosmicHero from "@/assets/cosmic-hero.jpg";
+import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
+import heroImage from "@/assets/cosmic-hero.jpg";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 const Index = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cosmic-dark via-cosmic-medium to-cosmic-dark">
+        <div className="text-cosmic-text">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Cosmic background with hero image */}
       <div 
         className="absolute inset-0 z-0 opacity-40"
         style={{
-          backgroundImage: `url(${cosmicHero})`,
+          backgroundImage: `url(${heroImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
