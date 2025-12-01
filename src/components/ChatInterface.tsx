@@ -92,58 +92,79 @@ export const ChatInterface = () => {
     await saveMessage("user", userMessage);
 
     try {
-      const { data, error } = await supabase.functions.invoke("cosmic-chat", {
-        body: { message: userMessage },
-      });
+      // Use direct fetch for streaming support
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cosmic-chat`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ message: userMessage }),
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to get response");
+      }
+
+      if (!response.body) throw new Error("No response body");
 
       let fullResponse = "";
-      const reader = data.body?.getReader();
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      
+      const assistantMessage: Message = { role: "assistant", content: "" };
+      setMessages((prev) => [...prev, assistantMessage]);
 
-      if (reader) {
-        const assistantMessage: Message = { role: "assistant", content: "" };
-        setMessages((prev) => [...prev, assistantMessage]);
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const jsonData = JSON.parse(line.slice(6));
-                if (jsonData.content) {
-                  fullResponse += jsonData.content;
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    updated[updated.length - 1].content = fullResponse;
-                    return updated;
-                  });
-                }
-              } catch (e) {
-                // Ignore JSON parse errors
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") continue;
+            
+            try {
+              const jsonData = JSON.parse(jsonStr);
+              const content = jsonData.choices?.[0]?.delta?.content;
+              if (content) {
+                fullResponse += content;
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1].content = fullResponse;
+                  return updated;
+                });
               }
+            } catch (e) {
+              console.warn("Failed to parse SSE data:", line);
             }
           }
         }
-
-        // Save assistant message
-        await saveMessage("assistant", fullResponse);
-        
-        // Show completion image
-        setShowComplete(true);
-        setTimeout(() => setShowComplete(false), 3000);
       }
+
+      // Save assistant message
+      await saveMessage("assistant", fullResponse);
+      
+      // Show completion image
+      setShowComplete(true);
+      setTimeout(() => setShowComplete(false), 3000);
     } catch (error: any) {
+      console.error("Chat error:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to get response from AI",
+        description: error.message || "Failed to get response from AI",
       });
       setMessages((prev) => prev.slice(0, -1));
     } finally {
