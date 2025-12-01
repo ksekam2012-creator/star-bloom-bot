@@ -187,19 +187,19 @@ export const ChatInterface = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      <div className="bg-cosmic-card/80 backdrop-blur-lg rounded-2xl shadow-cosmic border border-cosmic-border overflow-hidden">
+      <div className="bg-card/80 backdrop-blur-lg rounded-2xl shadow-cosmic border border-border overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-cosmic-dark to-cosmic-medium p-4 border-b border-cosmic-border flex justify-between items-center">
+        <div className="bg-gradient-stellar p-4 border-b border-border flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-cosmic-accent animate-pulse" />
-            <h2 className="text-lg font-semibold text-cosmic-text">Cosmic AI Assistant</h2>
+            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+            <h2 className="text-lg font-semibold text-foreground">Cosmic AI Assistant</h2>
           </div>
           <div className="flex items-center gap-2">
             <Button
               onClick={startNewChat}
               variant="ghost"
               size="sm"
-              className="text-cosmic-muted hover:text-cosmic-text"
+              className="text-muted-foreground hover:text-foreground"
             >
               <MessageSquare className="h-4 w-4 mr-2" />
               New Chat
@@ -208,7 +208,7 @@ export const ChatInterface = () => {
               onClick={signOut}
               variant="ghost"
               size="sm"
-              className="text-cosmic-muted hover:text-cosmic-text"
+              className="text-muted-foreground hover:text-foreground"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
@@ -217,12 +217,12 @@ export const ChatInterface = () => {
         </div>
 
         {/* Messages */}
-        <div className="h-[500px] overflow-y-auto p-6 space-y-4 bg-cosmic-dark/30">
+        <div className="h-[500px] overflow-y-auto p-6 space-y-4 bg-background/30">
           {messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center space-y-3">
-                <Sparkles className="h-12 w-12 text-cosmic-accent mx-auto animate-pulse" />
-                <p className="text-cosmic-muted text-lg">
+                <Sparkles className="h-12 w-12 text-primary mx-auto animate-pulse" />
+                <p className="text-muted-foreground text-lg">
                   Ask me about stars, galaxies, black holes, or any plant!
                 </p>
               </div>
@@ -239,8 +239,8 @@ export const ChatInterface = () => {
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                       message.role === "user"
-                        ? "bg-cosmic-accent text-white"
-                        : "bg-cosmic-card border border-cosmic-border text-cosmic-text"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-card border border-border text-foreground"
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{message.content}</p>
@@ -250,7 +250,7 @@ export const ChatInterface = () => {
               
               {showComplete && (
                 <div className="flex justify-center">
-                  <div className="rounded-xl overflow-hidden border-2 border-cosmic-accent shadow-cosmic animate-in fade-in zoom-in duration-500">
+                  <div className="rounded-xl overflow-hidden border-2 border-primary shadow-cosmic animate-in fade-in zoom-in duration-500">
                     <img 
                       src={chatCompleteImage} 
                       alt="Chat completed successfully" 
@@ -262,11 +262,11 @@ export const ChatInterface = () => {
               
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-cosmic-card border border-cosmic-border rounded-2xl px-4 py-3">
+                  <div className="bg-card border border-border rounded-2xl px-4 py-3">
                     <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-cosmic-accent rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <div className="w-2 h-2 bg-cosmic-accent rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <div className="w-2 h-2 bg-cosmic-accent rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
                   </div>
                 </div>
@@ -277,7 +277,7 @@ export const ChatInterface = () => {
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-cosmic-border bg-cosmic-dark/50">
+        <div className="p-4 border-t border-border bg-secondary/30 backdrop-blur-sm">
           <div className="flex gap-2">
             <Input
               value={input}
@@ -285,12 +285,12 @@ export const ChatInterface = () => {
               onKeyPress={handleKeyPress}
               placeholder="Ask about the cosmos or any plant..."
               disabled={isLoading}
-              className="flex-1 bg-cosmic-dark/50 border-cosmic-border text-cosmic-text placeholder:text-cosmic-muted"
+              className="flex-1 bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary"
             />
             <Button
               onClick={sendMessage}
               disabled={isLoading || !input.trim()}
-              className="bg-cosmic-accent hover:bg-cosmic-accent/90 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300 hover:scale-105 hover:shadow-glow"
             >
               <Send className="h-4 w-4" />
             </Button>
