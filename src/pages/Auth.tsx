@@ -47,46 +47,55 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-cosmic-dark via-cosmic-medium to-cosmic-dark">
-      {/* Animated background stars */}
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-background via-accent/10 to-background">
+      {/* Animated background stars with varied sizes */}
       <div className="absolute inset-0 overflow-hidden">
-        {[...Array(50)].map((_, i) => (
+        {[...Array(80)].map((_, i) => (
           <div
             key={i}
-            className="absolute w-1 h-1 bg-cosmic-accent rounded-full animate-pulse"
+            className="absolute bg-primary rounded-full animate-pulse"
             style={{
+              width: `${Math.random() * 3 + 1}px`,
+              height: `${Math.random() * 3 + 1}px`,
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
               animationDelay: `${Math.random() * 3}s`,
               animationDuration: `${2 + Math.random() * 3}s`,
+              boxShadow: `0 0 ${Math.random() * 10 + 5}px hsl(var(--primary))`,
             }}
           />
         ))}
       </div>
 
-      <Card className="w-full max-w-md mx-4 z-10 bg-cosmic-card/90 backdrop-blur-lg border-cosmic-border">
-        <CardHeader className="space-y-1 text-center">
+      {/* Floating gradient orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }} />
+      </div>
+
+      <Card className="w-full max-w-md mx-4 z-10 bg-card/90 backdrop-blur-lg border-border shadow-glow transition-all duration-500 hover:shadow-cosmic hover:scale-[1.02] animate-in fade-in-0 slide-in-from-bottom-4">
+        <CardHeader className="space-y-1 text-center animate-in fade-in-0 slide-in-from-top-2" style={{ animationDelay: '100ms' }}>
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Sparkles className="h-8 w-8 text-cosmic-accent" />
-            <CardTitle className="text-3xl font-display text-cosmic-text">
+            <Sparkles className="h-8 w-8 text-primary animate-pulse" style={{ animationDuration: '2s' }} />
+            <CardTitle className="text-3xl font-display text-foreground bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-in fade-in-0 zoom-in-50" style={{ animationDelay: '200ms' }}>
               Cosmic Explorer
             </CardTitle>
           </div>
-          <CardDescription className="text-cosmic-muted">
+          <CardDescription className="text-muted-foreground animate-in fade-in-0" style={{ animationDelay: '300ms' }}>
             Sign in to explore the universe and save your journey
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: '400ms' }}>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-cosmic-dark/50">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 bg-secondary/50 backdrop-blur-sm">
+              <TabsTrigger value="signin" className="transition-all data-[state=active]:shadow-glow">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" className="transition-all data-[state=active]:shadow-glow">Sign Up</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="signin">
+            <TabsContent value="signin" className="animate-in fade-in-0 slide-in-from-left-2">
               <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
+                <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-1" style={{ animationDelay: '50ms' }}>
+                  <Label htmlFor="signin-email" className="text-foreground">Email</Label>
                   <Input
                     id="signin-email"
                     type="email"
@@ -94,11 +103,11 @@ const Auth = () => {
                     value={signInForm.email}
                     onChange={(e) => setSignInForm({ ...signInForm, email: e.target.value })}
                     required
-                    className="bg-cosmic-dark/50 border-cosmic-border"
+                    className="bg-secondary/50 border-border backdrop-blur-sm transition-all duration-300 focus:border-primary focus:shadow-glow hover:border-primary/50"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
+                <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-1" style={{ animationDelay: '100ms' }}>
+                  <Label htmlFor="signin-password" className="text-foreground">Password</Label>
                   <Input
                     id="signin-password"
                     type="password"
@@ -106,19 +115,24 @@ const Auth = () => {
                     value={signInForm.password}
                     onChange={(e) => setSignInForm({ ...signInForm, password: e.target.value })}
                     required
-                    className="bg-cosmic-dark/50 border-cosmic-border"
+                    className="bg-secondary/50 border-border backdrop-blur-sm transition-all duration-300 focus:border-primary focus:shadow-glow hover:border-primary/50"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button 
+                  type="submit" 
+                  className="w-full transition-all duration-300 hover:scale-105 hover:shadow-glow active:scale-95 animate-in fade-in-0 zoom-in-50" 
+                  style={{ animationDelay: '150ms' }}
+                  disabled={isLoading}
+                >
                   {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
             </TabsContent>
             
-            <TabsContent value="signup">
+            <TabsContent value="signup" className="animate-in fade-in-0 slide-in-from-right-2">
               <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
+                <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-1" style={{ animationDelay: '50ms' }}>
+                  <Label htmlFor="signup-name" className="text-foreground">Full Name</Label>
                   <Input
                     id="signup-name"
                     type="text"
@@ -126,11 +140,11 @@ const Auth = () => {
                     value={signUpForm.fullName}
                     onChange={(e) => setSignUpForm({ ...signUpForm, fullName: e.target.value })}
                     required
-                    className="bg-cosmic-dark/50 border-cosmic-border"
+                    className="bg-secondary/50 border-border backdrop-blur-sm transition-all duration-300 focus:border-primary focus:shadow-glow hover:border-primary/50"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
+                <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-1" style={{ animationDelay: '100ms' }}>
+                  <Label htmlFor="signup-email" className="text-foreground">Email</Label>
                   <Input
                     id="signup-email"
                     type="email"
@@ -138,11 +152,11 @@ const Auth = () => {
                     value={signUpForm.email}
                     onChange={(e) => setSignUpForm({ ...signUpForm, email: e.target.value })}
                     required
-                    className="bg-cosmic-dark/50 border-cosmic-border"
+                    className="bg-secondary/50 border-border backdrop-blur-sm transition-all duration-300 focus:border-primary focus:shadow-glow hover:border-primary/50"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
+                <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-1" style={{ animationDelay: '150ms' }}>
+                  <Label htmlFor="signup-password" className="text-foreground">Password</Label>
                   <Input
                     id="signup-password"
                     type="password"
@@ -150,18 +164,23 @@ const Auth = () => {
                     value={signUpForm.password}
                     onChange={(e) => setSignUpForm({ ...signUpForm, password: e.target.value })}
                     required
-                    className="bg-cosmic-dark/50 border-cosmic-border"
+                    className="bg-secondary/50 border-border backdrop-blur-sm transition-all duration-300 focus:border-primary focus:shadow-glow hover:border-primary/50"
                     minLength={6}
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button 
+                  type="submit" 
+                  className="w-full transition-all duration-300 hover:scale-105 hover:shadow-glow active:scale-95 animate-in fade-in-0 zoom-in-50" 
+                  style={{ animationDelay: '200ms' }}
+                  disabled={isLoading}
+                >
                   {isLoading ? "Creating account..." : "Sign Up"}
                 </Button>
               </form>
             </TabsContent>
           </Tabs>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-2 text-center text-sm text-cosmic-muted">
+        <CardFooter className="flex flex-col space-y-2 text-center text-sm text-muted-foreground animate-in fade-in-0" style={{ animationDelay: '600ms' }}>
           <p>By continuing, you agree to our Terms of Service and Privacy Policy</p>
         </CardFooter>
       </Card>
