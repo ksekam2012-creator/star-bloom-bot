@@ -12,14 +12,18 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { message } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Received chat request with", messages.length, "messages");
+    if (!message) {
+      throw new Error("Message is required");
+    }
+
+    console.log("Received chat request with message:", message);
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -37,7 +41,10 @@ serve(async (req) => {
               content:
                 "You are a knowledgeable AI assistant specializing in astronomy and botany. You have vast geographical knowledge about plants, stars, galaxies, and black holes. Provide clear, accurate, and engaging explanations. When discussing space phenomena, be specific about distances, sizes, and scientific facts. When discussing plants, include botanical classifications and ecological information. Keep responses informative yet accessible.",
             },
-            ...messages,
+            {
+              role: "user",
+              content: message,
+            },
           ],
           stream: true,
         }),
